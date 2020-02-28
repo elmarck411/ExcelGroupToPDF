@@ -6,18 +6,30 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Office.Interop.Excel;
+using iText.Kernel.Pdf;
+using iText.Kernel.Font;
+using iText.IO.Font;
+using iText.Layout.Properties;
+using iText.Layout;
+using iText.Layout.Element;
+using iText.Kernel.Geom;
+using iText.IO.Font.Constants;
+using Path = System.IO.Path;
+
 
 namespace ExcelGroupToPDF
 {
+    
     class Program
     {
+        public static readonly string DEST = "colored_background.pdf";
         public const int NumberOfColumns = 16;
 
         static void Main(string[] args)
         {
 
             //Open the File and spreadsheet
-            var spreadsheetLocation = Path.Combine(Directory.GetCurrentDirectory(), "_ALP_OpenOrderCSR_TEST_NoParams.xls");
+            var spreadsheetLocation = Path.Combine(Directory.GetCurrentDirectory(), "_ALP_OpenOrderCSR_TEST_NoParamsTwoCustomers.xls");
             var exApp = new Application();
             var exWbk = exApp.Workbooks.Open(spreadsheetLocation);
             Worksheet exWks = exWbk.Sheets["Sheet1"];
@@ -38,11 +50,11 @@ namespace ExcelGroupToPDF
 
             foreach (var custNoGroup in groupedFields)
             {
-
+                /****
                 Worksheet newWorkSheet = exWbk.Sheets.Add(Type.Missing, Type.Missing, Type.Missing, Type.Missing);
                 Range groupRange = newWorkSheet.get_Range("A1", "P" + custNoGroup.Count()  );
-                
 
+                
                 string[,] arrayGroup = new string[custNoGroup.Count(), NumberOfColumns];
 
                 int i = 0;
@@ -66,24 +78,83 @@ namespace ExcelGroupToPDF
                     arrayGroup[i, 15] = row.HoldTerms;
                     i++;
                   //  groupRange.Insert(Type.Missing, arrayGroup);
-                }
-                groupRange.Value = arrayGroup;
+                  groupRange.Value = arrayGroup;
+                }****/
+                //cell.SetBorder(Border.NO_BORDER);
 
                 //groupRange.ExportAsFixedFormat
                 // Save into a PDF.
-                string filename = "CustomerInfo.pdf";
+                #region savepdf
+
+                PdfDocument pdfDoc = new PdfDocument(new PdfWriter("_ALP_OpenOrderCSR_TEST_" + custNoGroup.Key + ".pdf"));
+                Document doc = new Document(pdfDoc, PageSize.LEGAL.Rotate());
+                PdfFont font = PdfFontFactory.CreateFont(StandardFonts.TIMES_ROMAN);
+                Table table = new Table(UnitValue.CreatePercentArray(new float[] { 5, 5, 5, 5, 5, 5, 5, 20, 1, 1, 1, 1, 1, 5, 5, 5 })).UseAllAvailableWidth();
+                
+                foreach (var row in custNoGroup)
+                {
+                     table.AddCell(new Cell().Add(new Paragraph(row.CustNo ?? "")).SetBorder(iText.Layout.Borders.Border.NO_BORDER));
+                     table.AddCell(new Cell().Add(new Paragraph(row.ShipTo??"")).SetBorder(iText.Layout.Borders.Border.NO_BORDER));
+                     table.AddCell(new Cell().Add(new Paragraph(row.PONO ?? "")).SetBorder(iText.Layout.Borders.Border.NO_BORDER));
+                     table.AddCell(new Cell().Add(new Paragraph(row.CSR ?? "")).SetBorder(iText.Layout.Borders.Border.NO_BORDER));
+                     table.AddCell(new Cell().Add(new Paragraph(row.SLSNAME ?? "")).SetBorder(iText.Layout.Borders.Border.NO_BORDER));
+                     table.AddCell(new Cell().Add(new Paragraph(row.OrderNo ?? "")).SetBorder(iText.Layout.Borders.Border.NO_BORDER));
+                     table.AddCell(new Cell().Add(new Paragraph(row.ReleaseNo ?? "")).SetBorder(iText.Layout.Borders.Border.NO_BORDER));
+                     table.AddCell(new Cell().Add(new Paragraph(row.OrdDate ?? "")).SetBorder(iText.Layout.Borders.Border.NO_BORDER));
+                     table.AddCell(new Cell().Add(new Paragraph(row.PromiseDate ?? "")).SetBorder(iText.Layout.Borders.Border.NO_BORDER));
+                     table.AddCell(new Cell().Add(new Paragraph(row.ItemNo ?? "")).SetBorder(iText.Layout.Borders.Border.NO_BORDER));
+                     table.AddCell(new Cell().Add(new Paragraph(row.CustItemNo ?? "")).SetBorder(iText.Layout.Borders.Border.NO_BORDER));
+                     table.AddCell(new Cell().Add(new Paragraph(row.CustDescrip ?? "")).SetBorder(iText.Layout.Borders.Border.NO_BORDER));
+                     table.AddCell(new Cell().Add(new Paragraph(row.WHSE ?? "")).SetBorder(iText.Layout.Borders.Border.NO_BORDER));
+                     table.AddCell(new Cell().Add(new Paragraph(row.OrdQty ?? "")).SetBorder(iText.Layout.Borders.Border.NO_BORDER));
+                     table.AddCell(new Cell().Add(new Paragraph(row.OrdAvailQty ?? "")).SetBorder(iText.Layout.Borders.Border.NO_BORDER));
+                     table.AddCell(new Cell().Add(new Paragraph(row.HoldTerms ?? "")).SetBorder(iText.Layout.Borders.Border.NO_BORDER));
+                    //cell.SetTextAlignment(TextAlignment.CENTER);
+                    table.StartNewRow();
+                }
+                table.SetFont(font).SetFontSize(8);
+                doc.Add(table);
+                doc.Close();
+
+                /*
+                document.SetMargins(20, 20, 20, 20);
+                Table table = new Table(UnitValue.CreatePercentArray(new float[] { 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5 })).UseAllAvailableWidth();
+                document.Add(new Paragraph("Testing"));
+                //document.Add(table);
+                document.Close();
+                result = memoryStream.ToArray();
+               
+    */
+
+                //table.SetWidth(UnitValue.CreatePercentValue(100));
+                /*StreamReader sr = File.OpenText(DATA);
+                var line = sr.ReadLine();
+                process(table, line, bold, true);
+                while ((line = sr.ReadLine()) != null)
+                {
+                    process(table, line, font, false);
+                }
+                sr.Close();
+                document.Add(table);
+                document.Close();*/
+                #endregion
+
+
+
+
+
+
+
+                /*
+                string filename = "CustomerInfo_" + custNoGroup.Key + ".pdf";
                 const int xlQualityStandard = 0;
                 //exWks.ExportAsFixedFormat(
                 groupRange.ExportAsFixedFormat(
                     Microsoft.Office.Interop.Excel.XlFixedFormatType.xlTypePDF,
                     filename, xlQualityStandard, true, true,
                     Type.Missing, Type.Missing, true, Type.Missing);
+                    */
             }
-
-            
-
-           
-                
         }
 
         public static List<MemoryRow>  assignProperties(Range xlRange)
