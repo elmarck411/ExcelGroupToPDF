@@ -16,6 +16,7 @@ using iText.Kernel.Geom;
 using iText.IO.Font.Constants;
 using Path = System.IO.Path;
 using System.Globalization;
+using System.Diagnostics;
 
 namespace ExcelGroupToPDF
 {
@@ -24,83 +25,109 @@ namespace ExcelGroupToPDF
     {
         public static readonly string DEST = "colored_background.pdf";
         public const int NumberOfColumns = 16;
-
+       
         static void Main(string[] args)
         {
-
-            //Open the File and spreadsheet
-            var spreadsheetLocation = Path.Combine(Directory.GetCurrentDirectory(), "_ALP_OpenOrderCSR_TEST_NoParamsTwoCustomers.xls");
-            var exApp = new Application();
-            var exWbk = exApp.Workbooks.Open(spreadsheetLocation);
-            Worksheet exWks = exWbk.Sheets["Sheet1"];
-            
-            Microsoft.Office.Interop.Excel.Range xlRange = (Microsoft.Office.Interop.Excel.Range)exWks.UsedRange as Microsoft.Office.Interop.Excel.Range;
-
-            //xlRange.Group(Type.Missing, Type.Missing, Type.Missing, Type.Missing);
-            //xlRange.OutlineLevel = 1;
-            exWks.EnableAutoFilter = true;
-
-            // var memberValue = (string)(exWks.Cells[4, 5] as Microsoft.Office.Interop.Excel.Range).Value;
-            //Microsoft.Office.Interop.Excel.Range groupedRange;
-
-            MemoryRow memoryHeaders = new MemoryRow()
+            Application exApp = null;
+            string spreadsheetLocation = null;
+            Workbook exWbk = null;
+            Worksheet exWks = null;
+            Range xlRange = null;
+            //TextWriterTraceListener fileListener = null;
+            try
             {
-                CustNo = "Cust No",
-                ShipTo = "Ship To",
-                PONO = "PO No.",
-                CSR = "CSR",
-                SLSNAME = "SLS Name",
-                OrderNo = "Order No.",
-                ReleaseNo = "Release No.",
-                OrdDate = "Ord. Date",
-                PromiseDate = "Promise Date",
-                ItemNo = "Item No.",
-                CustItemNo = "Cust. Item No.",
-                CustDescrip = "Cust. Description",
-                WHSE = "WHSE",
-                OrdQty = "Ord. Qty",
-                OrdAvailQty = "Ord. Avail. Qty.",
-                HoldTerms = "Hold Terms"
-            };
+                //fileListener = new TextWriterTraceListener(new FileStream("TraceLog.txt", FileMode.OpenOrCreate, FileAccess.Write));
+                //Trace.Listeners.Add(fileListener);
 
-            List<MemoryRow> objs =  assignProperties(xlRange);
+                exApp = new Application();
+                spreadsheetLocation = Path.Combine( Directory.GetCurrentDirectory(), "_ALP_OpenOrderCSR_TEST_NoParams.xls");
+                exWbk = exApp.Workbooks.Open(spreadsheetLocation);
+                exWks = exWbk.Sheets["Sheet1"];
+                xlRange = exWks.UsedRange;
+                exWks.EnableAutoFilter = true;
 
-            var groupedFields = (from o in objs
-                                 group o by o.CustNo);
-
-
-            foreach (var custNoGroup in groupedFields)
-            {
-                
-                // Save into a PDF.
-                #region savepdf
-
-                PdfDocument pdfDoc = new PdfDocument(new PdfWriter("_ALP_OpenOrderCSR_TEST_" + custNoGroup.Key + ".pdf"));
-                Document doc = new Document(pdfDoc, PageSize.LEGAL.Rotate());
-                PdfFont font = PdfFontFactory.CreateFont(StandardFonts.TIMES_ROMAN);
-                Table table = new Table(UnitValue.CreatePercentArray(new float[] { 13, 7, 5, 9, 4, 3, 4, 4, 4, 13, 18, 2, 5, 6, 3 })).UseAllAvailableWidth();
-
-                table.AddCell(new Cell().Add (new Paragraph("Alpha Open Orders Report (CSR)")).SetBorder(iText.Layout.Borders.Border.NO_BORDER));
-                table.StartNewRow();
-                table.AddCell(new Cell().Add(new Paragraph("Customer: " + custNoGroup.Key)).SetBorder(iText.Layout.Borders.Border.NO_BORDER));
-                table.StartNewRow();
-                
-                table.StartNewRow();
-                table = CreateTableRow(table, memoryHeaders, true);
-
-                foreach (var row in custNoGroup)
+                MemoryRow memoryHeaders = new MemoryRow()
                 {
-                    table = CreateTableRow(table, row);
-                }
-                table.SetFontSize(8);
-                doc.Add(table);
-                doc.Close();
+                    CustNo = "Cust No",
+                    ShipTo = "Ship To",
+                    PONO = "PO No.",
+                    CSR = "CSR",
+                    SLSNAME = "SLS Name",
+                    OrderNo = "Order No.",
+                    ReleaseNo = "Release No.",
+                    OrdDate = "Ord. Date",
+                    PromiseDate = "Promise Date",
+                    ItemNo = "Item No.",
+                    CustItemNo = "Cust. Item No.",
+                    CustDescrip = "Cust. Description",
+                    WHSE = "WHSE",
+                    OrdQty = "Ord. Qty",
+                    OrdAvailQty = "Ord. Avail. Qty.",
+                    HoldTerms = "Hold Terms"
+                };
 
-                exApp.Workbooks.Close();
-                #endregion
+                List<MemoryRow> objs = assignProperties(xlRange);
+                var groupedFields = (from o in objs
+                                     group o by o.CustNo);
+                Directory.CreateDirectory("PDFReports");
+
+                foreach (var custNoGroup in groupedFields)
+                {
+                    if (custNoGroup.Key != "" && custNoGroup.Key != "Alpha Open Orders Report (CSR)")
+                    {
+                        // Save into a PDF.
+                        #region savepdf
+                        PdfDocument pdfDoc = new PdfDocument(new PdfWriter("PDFReports\\_ALP_OpenOrderCSR_" + custNoGroup.Key + ".pdf"));
+                        Document doc = new Document(pdfDoc, PageSize.LEGAL.Rotate());
+                        PdfFont font = PdfFontFactory.CreateFont(StandardFonts.TIMES_ROMAN);
+                        Table table = new Table(UnitValue.CreatePercentArray(new float[] { 13, 7, 5, 9, 4, 3, 4, 4, 4, 13, 18, 2, 5, 6, 3 })).UseAllAvailableWidth();
+
+                        table.AddCell(new Cell(1, 3).Add(new Paragraph("Alpha Open Orders Report")).SetBorder(iText.Layout.Borders.Border.NO_BORDER).SetFontSize(14));
+                        table.StartNewRow();
+                        table.AddCell(new Cell().Add(new Paragraph("Customer: " + custNoGroup.Key)).SetBorder(iText.Layout.Borders.Border.NO_BORDER));
+                        table.StartNewRow();
+                        table.StartNewRow();
+                        table = CreateTableRow(table, memoryHeaders, true);
+
+                        foreach (var row in custNoGroup)
+                        {
+                            table = CreateTableRow(table, row);
+                        }
+                        table.SetFontSize(8);
+                        doc.Add(table);
+                        doc.Close();
+
+                        exApp.Workbooks.Close();
+                        exApp.Quit();
+                        #endregion
+
+                    }
+                }
+                Trace.WriteLine(DateTime.Now.ToString() + " - App has run correctly");
+            }
+            catch (Exception ex)
+            {
+                Trace.TraceError(DateTime.Now.ToString() + " - Error: " + ex.Message);
+            }
+            finally
+            {
+                if (exApp != null)
+                {
+                    if(exApp.Workbooks != null)
+                        exApp.Workbooks.Close();
+                    exApp.Quit();
+                }
+                Trace.Flush();
             }
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="table"></param>
+        /// <param name="row"></param>
+        /// <param name="isHeader"></param>
+        /// <returns></returns>
         public static Table CreateTableRow(Table table, MemoryRow row, bool isHeader = false )
         {
             PdfFont font = PdfFontFactory.CreateFont(StandardFonts.TIMES_ROMAN);
