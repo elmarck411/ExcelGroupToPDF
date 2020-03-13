@@ -17,6 +17,7 @@ using iText.IO.Font.Constants;
 using Path = System.IO.Path;
 using System.Globalization;
 using System.Diagnostics;
+using System.Configuration;
 
 namespace ExcelGroupToPDF
 {
@@ -28,24 +29,23 @@ namespace ExcelGroupToPDF
        
         static void Main(string[] args)
         {
+            
             Application exApp = null;
             string spreadsheetLocation = null;
             Workbook exWbk = null;
             Worksheet exWks = null;
             Range xlRange = null;
-            //TextWriterTraceListener fileListener = null;
             try
             {
-                //fileListener = new TextWriterTraceListener(new FileStream("TraceLog.txt", FileMode.OpenOrCreate, FileAccess.Write));
-                //Trace.Listeners.Add(fileListener);
-
                 exApp = new Application();
-                spreadsheetLocation = Path.Combine( Directory.GetCurrentDirectory(), "_ALP_OpenOrderCSR_TEST_NoParams.xls");
+                
+                spreadsheetLocation = Path.Combine(ConfigurationManager.AppSettings["ExcelOriginPath"] + ConfigurationManager.AppSettings["ExcelOriginFileName"]);
+                Trace.WriteLine(DateTime.Now.ToString() + " - TESTING CHANGE BEFORE READING EXCEL, spreadsheetLocation: " +  spreadsheetLocation);
                 exWbk = exApp.Workbooks.Open(spreadsheetLocation);
                 exWks = exWbk.Sheets["Sheet1"];
                 xlRange = exWks.UsedRange;
                 exWks.EnableAutoFilter = true;
-
+                
                 MemoryRow memoryHeaders = new MemoryRow()
                 {
                     CustNo = "Cust No",
@@ -65,19 +65,22 @@ namespace ExcelGroupToPDF
                     OrdAvailQty = "Ord. Avail. Qty.",
                     HoldTerms = "Hold Terms"
                 };
-
+                
                 List<MemoryRow> objs = assignProperties(xlRange);
                 var groupedFields = (from o in objs
                                      group o by o.CustNo);
-                Directory.CreateDirectory("PDFReports");
+                Trace.WriteLine(DateTime.Now.ToString() + " - Directory path:" + ConfigurationManager.AppSettings["DirPdf"]);
+                Directory.CreateDirectory(ConfigurationManager.AppSettings["DirPdf"]);
 
+                Trace.WriteLine(DateTime.Now.ToString() + " - Directory created, entering groups");
                 foreach (var custNoGroup in groupedFields)
                 {
                     if (custNoGroup.Key != "" && custNoGroup.Key != "Alpha Open Orders Report (CSR)")
                     {
                         // Save into a PDF.
                         #region savepdf
-                        PdfDocument pdfDoc = new PdfDocument(new PdfWriter("PDFReports\\_ALP_OpenOrderCSR_" + custNoGroup.Key + ".pdf"));
+                        Trace.WriteLine(DateTime.Now.ToString() + " - Saving to PDF");
+                        PdfDocument pdfDoc = new PdfDocument(new PdfWriter(Path.Combine(ConfigurationManager.AppSettings["DirPdf"],"_ALP_OpenOrderCSR_" + custNoGroup.Key + ".pdf")));
                         Document doc = new Document(pdfDoc, PageSize.LEGAL.Rotate());
                         PdfFont font = PdfFontFactory.CreateFont(StandardFonts.TIMES_ROMAN);
                         Table table = new Table(UnitValue.CreatePercentArray(new float[] { 13, 7, 5, 9, 4, 3, 4, 4, 4, 13, 18, 2, 5, 6, 3 })).UseAllAvailableWidth();
@@ -97,17 +100,18 @@ namespace ExcelGroupToPDF
                         doc.Add(table);
                         doc.Close();
 
-                        exApp.Workbooks.Close();
-                        exApp.Quit();
                         #endregion
-
+                        Trace.WriteLine(DateTime.Now.ToString() + " - PDF saved: " + custNoGroup.Key);
                     }
                 }
                 Trace.WriteLine(DateTime.Now.ToString() + " - App has run correctly");
+                
             }
             catch (Exception ex)
             {
                 Trace.TraceError(DateTime.Now.ToString() + " - Error: " + ex.Message);
+                Trace.TraceError("   - StackTrace: " + ex.StackTrace);
+
             }
             finally
             {
